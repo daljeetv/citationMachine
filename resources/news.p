@@ -1,0 +1,15 @@
+c__builtin__
+set
+p0
+((lp1
+S'a'
+p2
+aS'b'
+p3
+aS'www.news.ycombinator.com'
+p4
+aS'd'
+p5
+atp6
+Rp7
+.
