@@ -17,19 +17,35 @@ import glob
 import os
 import random
 import re
+from pygments.formatters.terminal import TerminalFormatter
 import requests
 import sys
 import urlparse
 import unicodedata
 import httplib2
 
-from . import __version__
+
+
+try:
+    from urllib.parse import quote as url_quote
+except ImportError:
+    from urllib import quote as url_quote
+
+try:
+    from urllib import getproxies
+except ImportError:
+    from urllib.request import getproxies
 
 from pyquery import PyQuery as pq
+from pygments import highlight
+from pygments.lexers import guess_lexer, get_lexer_by_name
+from pygments.util import ClassNotFound
 from requests.exceptions import ConnectionError
 from requests.exceptions import SSLError
 from BeautifulSoup import BeautifulSoup
 from BeautifulSoup import SoupStrainer
+
+__version__ = 0.1
 
 # Handle unicode between Python 2 and 3
 # http://stackoverflow.com/a/6633040/305414
@@ -58,60 +74,40 @@ USER_AGENTS = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:11.0) Gecko/2010
 ANSWER_HEADER = u('--- Answer {0} ---\n{1}')
 NO_ANSWER_MSG = '< no answer given >'
 
-#write it using format: www.yoursite.com
-startWebSite = "http://www.lemonade.io/"
-prefixes = ["www.", "http://", "https://"]
 
-def is_absolute(url):
-    return bool(urlparse.urlparse(url).path)
-
-# This function gets all the links in the file and stores them in a set.
-def clearUrlAndMakeAbsolute(url_path):
-    if(url_path == None):
-        return False, ""
-    else:
-        contained = [x for x in prefixes if x in url_path]
-        if len(contained) != 0:
-            return True, "http://" + url_path.split(contained[0])[1]
-        else:
-            return True, "http://" + url_path
-
-def addCleanLink(link_temp, url_path):
-    link_temp = normalizeUnicode(link_temp)
-    if (isWebsite(link_temp)):
-        return link_temp
-    else:
-        return url_path + link_temp
+def get_proxies():
+    proxies = getproxies()
+    filtered_proxies = {}
+    for key, value in proxies.items():
+        if key.startswith('http'):
+            if not value.startswith('http'):
+                filtered_proxies[key] = 'http://%s' % value
+            else:
+                filtered_proxies[key] = value
+    return filtered_proxies
 
 
-def isWebsite(link_temp):
-    return ("www" in link_temp) or("https://" in link_temp) or ("http:" in link_temp)
-
-
-def normalizeUnicode(link_temp):
-    return unicodedata.normalize('NFKD', link_temp).encode('ascii', 'ignore')
-
-
-def getAllLinks(url_path):
-    links = set()
-    hdr, status, url_path = createRequest(url_path)
-    if(status and startWebSite in url_path):
-        http = httplib2.Http()
-        try:
-            status, response = http.request(url_path, headers=hdr)
-        except (httplib2.RedirectLimit, httplib2.ServerNotFoundError, UnicodeError, httplib2.RelativeURIError, httplib.InvalidURL):
-            return 'bad'
-        print url_path
-        # print status
-        try:
-            for link in BeautifulSoup(response, parseOnlyThese=SoupStrainer('a')):
-                if link.has_key('href'):
-                    link_temp = link.get('href')
-                    if("#content" not in link_temp):
-                        links.add(addCleanLink(link_temp, url_path))
-        except (UnicodeEncodeError):
-            return 'bad'
-    return links
+#
+# def getAllLinks(url_path):
+#     links = set()
+#     hdr, status, url_path = createRequest(url_path)
+#     if(status and startWebSite in url_path):
+#         http = httplib2.Http()
+#         try:
+#             status, response = http.request(url_path, headers=hdr)
+#         except (httplib2.RedirectLimit, httplib2.ServerNotFoundError, UnicodeError, httplib2.RelativeURIError, httplib.InvalidURL):
+#             return 'bad'
+#         print url_path
+#         # print status
+#         try:
+#             for link in BeautifulSoup(response, parseOnlyThese=SoupStrainer('a')):
+#                 if link.has_key('href'):
+#                     link_temp = link.get('href')
+#                     if("#content" not in link_temp):
+#                         links.add(addCleanLink(link_temp, url_path))
+#         except (UnicodeEncodeError):
+#             return 'bad'
+#     return links
 
 
 def writeSetToFile(allSet, startWebSite):
@@ -121,33 +117,125 @@ def writeSetToFile(allSet, startWebSite):
 
 
 def create_file_name(startWebSite):
-    contained = [x for x in prefixes if x in startWebSite]
-    if len(contained)!=0:
-        return startWebSite.split(contained[0])[1].split(".")[0]
+    # contained = [x for x in prefixes if x in startWebSite]
+    # if len(contained)!=0:
+    #     return startWebSite.split(contained[0])[1].split(".")[0]
+    # else:
+    return startWebSite
+
+
+# if __name__ == "__main__":
+#     allLinks = [startWebSite]
+#     visited = []
+#     for key in allLinks:
+#         # mark it as visited.
+#         if key not in visited:
+#             visited.append(key)
+#             # go to all the links in that link
+#             links = getAllLinks(key)
+#             # add all links we haven't seen before
+#             if (links is not None):
+#                 allLinks.extend(links)
+#                 allSet = set(allLinks)
+#                 writeSetToFile(allSet, startWebSite)
+#     for link in allLinks:
+#         print link
+
+def format_output(code, args):
+    if not args['color']:
+        return code
+    lexer = None
+
+    # try to find a lexer using the StackOverflow tags
+    # or the web_site arguments
+    for keyword in args['web_site'].split() + args['tags']:
+        try:
+            lexer = get_lexer_by_name(keyword)
+            break
+        except ClassNotFound:
+            pass
+
+    # no lexer found above, use the guesser
+    if not lexer:
+        try:
+            lexer = guess_lexer(code)
+        except ClassNotFound:
+            return code
+
+    return highlight(code,
+                     lexer,
+                     TerminalFormatter(bg='dark'))
+
+def is_question(link):
+    return re.search('questions/\d+/', link)
+
+def get_link_at_pos(links, position):
+    links = [link for link in links if is_question(link)]
+    if not links:
+        return False
+
+    if len(links) >= position:
+        link = links[position-1]
     else:
-        return startWebSite
+        link = links[-1]
+    return link
+
+def get_answer(args, links):
+    link = get_link_at_pos(links, args['pos'])
+    if not link:
+        return False
+    if args.get('link'):
+        return link
+    page = get_result(link + '?answertab=votes')
+    html = pq(page)
+
+    first_answer = html('.answer').eq(0)
+    instructions = first_answer.find('pre') or first_answer.find('code')
+    args['tags'] = [t.text for t in html('.post-tag')]
+
+    if not instructions and not args['all']:
+        text = first_answer.find('.post-text').eq(0).text()
+    elif args['all']:
+        texts = []
+        for html_tag in first_answer.items('.post-text > *'):
+            current_text = html_tag.text()
+            if current_text:
+                if html_tag[0].tag in ['pre', 'code']:
+                    texts.append(format_output(current_text, args))
+                else:
+                    texts.append(current_text)
+        texts.append('\n---\nAnswer from {0}'.format(link))
+        text = '\n'.join(texts)
+    else:
+        text = format_output(instructions.eq(0).text(), args)
+    if text is None:
+        text = NO_ANSWER_MSG
+    text = text.strip()
+    return text
 
 
-if __name__ == "__main__":
-    allLinks = [startWebSite]
-    visited = []
-    for key in allLinks:
-        # mark it as visited.
-        if key not in visited:
-            visited.append(key)
-            # go to all the links in that link
-            links = getAllLinks(key)
-            # add all links we haven't seen before
-            if (links is not None):
-                allLinks.extend(links)
-                allSet = set(allLinks)
-                writeSetToFile(allSet, startWebSite)
-    for link in allLinks:
-        print link
+def cleanLink(url):
 
+
+
+def get_result(url):
+    try:
+        url = cleanLink(url)
+        return requests.get(url, headers={'User-Agent': random.choice(USER_AGENTS)}, proxies=get_proxies()).text
+    except requests.exceptions.SSLError as e:
+        print('[ERROR] Encountered an SSL Error. Try using HTTP instead of '
+              'HTTPS by setting the environment variable "HOWDOI_DISABLE_SSL".\n')
+        raise e
+
+
+def get_links(web_site):
+    result = get_result(SEARCH_URL.format(url_quote(web_site)))
+    html = pq(result)
+    return [a.attrib['href'] for a in html('.l')] or \
+        [a.attrib['href'] for a in html('.r')('a')]
 
 def get_instructions(args):
-    links = get_links(args['query'])
+    links = get_links(args['web_site'])
     if not links:
         return False
     answers = []
@@ -167,16 +255,25 @@ def get_instructions(args):
 
 
 def find_links_from_webpage(args):
-    args['query'] = ' '.join(args['query']).replace('?', '')
+    args['web_site'] = ' '.join(args['web_site']).replace('?', '')
     try:
         return get_instructions(args) or 'Sorry, couldn\'t find any help with that topic\n'
     except (ConnectionError, SSLError):
         return 'Failed to establish network connection\n'
 
+def citationmachine(args):
+    args['web_site'] = ' '.join(args['web_site']).replace('?', '')
+    try:
+        return get_instructions(args) or 'Sorry, couldn\'t find that website\n'
+    except (ConnectionError, SSLError):
+        return 'Failed to establish network connection\n'
+
 def get_parser():
     parser = argparse.ArgumentParser(description='instant external link search via the command line')
-    parser.add_argument('query', metavar='QUERY', type=str, nargs='*',
+    parser.add_argument('web_site', metavar='WEBSITE', type=str, nargs='*',
                         help='the question to answer')
+    parser.add_argument('-v', '--version', help='displays the current version of howdoi',
+                        action='store_true')
     return parser
 
 
@@ -184,11 +281,14 @@ def command_line_runner():
     parser = get_parser()
     args = vars(parser.parse_args())
 
+    #for testing purposes:
+
+
     if args['version']:
         print(__version__)
         return
 
-    if not args['query']:
+    if not args['web_site']:
         parser.print_help()
         return
 
@@ -203,5 +303,6 @@ def command_line_runner():
 
 if __name__ == '__main__':
     command_line_runner()
+
 
 
