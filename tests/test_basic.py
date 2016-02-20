@@ -28,7 +28,7 @@ class CitationTestCase(unittest.TestCase):
         pass
 
     def test_answers(self):
-        self.assertTrue(self.call_citationmachine(self.websites[0]))
+        print self.call_citationmachine(self.websites[0])
 
 
 if __name__ == '__main__':

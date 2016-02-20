@@ -42,8 +42,7 @@ from pygments.lexers import guess_lexer, get_lexer_by_name
 from pygments.util import ClassNotFound
 from requests.exceptions import ConnectionError
 from requests.exceptions import SSLError
-from BeautifulSoup import BeautifulSoup
-from BeautifulSoup import SoupStrainer
+from bs4 import BeautifulSoup
 
 __version__ = 0.1
 
@@ -58,10 +57,7 @@ else:
     def u(x):
         return x
 
-if os.getenv('CITATION_MACHINE_DISABLE_SSL'):  # Set http instead of https
-    SEARCH_URL = 'http://{0}'
-else:
-    SEARCH_URL = 'https://{0}'
+SEARCH_URL = 'http://{0}'
 
 
 URL = os.getenv('CITATION_MACHINE_URL') or 'lesswrong.com'
@@ -86,7 +82,6 @@ def get_proxies():
                 filtered_proxies[key] = value
     return filtered_proxies
 
-
 #
 # def getAllLinks(url_path):
 #     links = set()
@@ -99,14 +94,6 @@ def get_proxies():
 #             return 'bad'
 #         print url_path
 #         # print status
-#         try:
-#             for link in BeautifulSoup(response, parseOnlyThese=SoupStrainer('a')):
-#                 if link.has_key('href'):
-#                     link_temp = link.get('href')
-#                     if("#content" not in link_temp):
-#                         links.add(addCleanLink(link_temp, url_path))
-#         except (UnicodeEncodeError):
-#             return 'bad'
 #     return links
 
 
@@ -213,15 +200,25 @@ def get_answer(args, links):
     text = text.strip()
     return text
 
-
+prefixes = ["www."]
 def cleanLink(url):
+    contained = [x for x in prefixes if x in url]
+    for prefix in contained:
+        url = url.replace(prefix, "")
+    return url
 
 
 
-def get_result(url):
+def get_links_from_response(resp):
+    encoding = resp.encoding if 'charset' in resp.headers.get('content-type', '').lower() else None
+    soup = BeautifulSoup(resp.content, from_encoding=encoding)
+    return soup.find_all('a', href=True)
+
+
+def get_response(url):
     try:
-        url = cleanLink(url)
-        return requests.get(url, headers={'User-Agent': random.choice(USER_AGENTS)}, proxies=get_proxies()).text
+        cleanUrl = cleanLink(url)
+        return requests.get(cleanUrl, headers={'User-Agent': random.choice(USER_AGENTS)}, proxies=get_proxies())
     except requests.exceptions.SSLError as e:
         print('[ERROR] Encountered an SSL Error. Try using HTTP instead of '
               'HTTPS by setting the environment variable "HOWDOI_DISABLE_SSL".\n')
@@ -229,29 +226,15 @@ def get_result(url):
 
 
 def get_links(web_site):
-    result = get_result(SEARCH_URL.format(url_quote(web_site)))
-    html = pq(result)
-    return [a.attrib['href'] for a in html('.l')] or \
-        [a.attrib['href'] for a in html('.r')('a')]
+    response = get_response(SEARCH_URL.format(url_quote(web_site)))
+    return get_links_from_response(response)
 
 def get_instructions(args):
     links = get_links(args['web_site'])
+    links = [x['href'] for x in links]
     if not links:
         return False
-    answers = []
-    append_header = args['num_answers'] > 1
-    initial_position = args['pos']
-    for answer_number in range(args['num_answers']):
-        current_position = answer_number + initial_position
-        args['pos'] = current_position
-        answer = get_answer(args, links)
-        if not answer:
-            continue
-        if append_header:
-            answer = ANSWER_HEADER.format(current_position, answer)
-        answer = answer + '\n'
-        answers.append(answer)
-    return '\n'.join(answers)
+    return '\n'.join(links)
 
 
 def find_links_from_webpage(args):

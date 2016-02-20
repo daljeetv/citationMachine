@@ -1,7 +1,7 @@
 require 'formula'
 
 class LINKS < Formula
-  homepage 'https://github.com/dvirdi/links/'
+  homepage 'https://github.com/dvirdi/citationmachine/'
 
   def install
     setup_args = ['setup.py', 'install']
