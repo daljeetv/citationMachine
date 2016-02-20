@@ -1,0 +1,12 @@
+README.rst
+setup.py
+citationmachine.egg-info/PKG-INFO
+citationmachine.egg-info/SOURCES.txt
+citationmachine.egg-info/dependency_links.txt
+citationmachine.egg-info/entry_points.txt
+citationmachine.egg-info/requires.txt
+citationmachine.egg-info/top_level.txt
+src/__init__.py
+src/addToFeedly.py
+src/citationmachine.py
+src/sortMostCitedLinks.py

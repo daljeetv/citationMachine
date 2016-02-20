@@ -1,0 +1,3 @@
+[console_scripts]
+citationmachine = citationmachine.citationmachine:command_line_runner
+

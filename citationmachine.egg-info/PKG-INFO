@@ -1,0 +1,64 @@
+Metadata-Version: 1.0
+Name: citationmachine
+Version: 0.1
+Summary: Instant coding answers via the command line
+Home-page: https://github.com/dvirdi/Links
+Author: Daljeet Virdi
+Author-email: daljeetv@gmail.com
+License: MIT
+Description: 
+        citationmachine
+        ====================================================
+        Instant link searching via the command line.
+        -------------------------------------------
+        
+        Are you looking to discover new information?
+        
+        Discover where the bloggers and websites you like source their information.
+        
+        
+        Run Using Command:
+        ------------------
+        
+        ::
+        
+            $ citationmachine www.lesswrong.com
+            > {list of websites}
+        
+        
+        
+        Installation
+        ------------
+        
+        ::
+        
+            python setup.py install
+        
+        
+        
+        Author
+        ------
+        
+        -  Daljeet Virdi (`@daljeetvirdi <http://twitter.com/daljeetvirdi>`_)
+        
+        
+        Notes
+        -----
+        -  Works with Python2 and Python3
+        News
+        ====
+        
+        
+Keywords: citationmachine helps discover websites from websites you like.
+Platform: UNKNOWN
+Classifier: Development Status :: 2 - Pre-Alpha
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.2
+Classifier: Programming Language :: Python :: 3.3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Topic :: Information Data Mining
